@@ -1,0 +1,30 @@
+# ✅ Python cache & compiled files
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+*.pyo
+
+# ✅ Virtual environments
+.venv/
+env/
+venv/
+
+# ✅ Secrets & config
+.env
+*.env
+
+# ✅ OS files
+.DS_Store
+Thumbs.db
+
+# ✅ Jupyter/Colab
+.ipynb_checkpoints/
+
+# ✅ Logs and outputs
+*.log
+*.out
+
+# ✅ IDE-specific files (optional but recommended)
+.vscode/
+.idea/
