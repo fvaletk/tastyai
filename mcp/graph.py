@@ -21,6 +21,8 @@ def parser_node(state: TastyAIState) -> dict:
     # Convert to UserPreferences object for state validation
     preferences_obj = UserPreferences(**preferences) if isinstance(preferences, dict) else preferences
 
+    print("PARSING RESULT: preferences_obj", preferences_obj)
+
     return {
         **state.dict(),
         "messages": updated_messages,
@@ -32,7 +34,9 @@ def search_node(state: TastyAIState) -> dict:
     prefs_dict = state.preferences.dict() if hasattr(state.preferences, 'dict') else (
         state.preferences.model_dump() if hasattr(state.preferences, 'model_dump') else state.preferences
     )
+    print("SEARCHING RESULT: prefs_dict", prefs_dict)
     results = search_recipes.invoke({"preferences": prefs_dict})
+    print("SEARCHING RESULT: results", results)
     return {
       **state.dict(),
       "results": results["matches"]
@@ -52,11 +56,13 @@ def response_node(state: TastyAIState) -> dict:
         )
         for r in results_list
     ]
-    
+    print("RESPONSE RESULT: results_dicts", results_dicts)
     result = generate_response.invoke({
         "preferences": prefs_dict,
         "results": results_dicts
     })
+
+    print("RESPONSE RESULT: result", result)
 
     return {
         **state.dict(),

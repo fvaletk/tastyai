@@ -18,27 +18,23 @@ async def recommend_meal(request: MessageRequest):
     user_input = request.message
 
     try:
-        print("➡️ STEP 1: Building messages")
         messages = [
             Message(role="user", content=user_input)
         ]
-        print("➡️ STEP 2: Creating initial state")
+
         initial_state = TastyAIState(
             user_input=user_input,
             messages=messages
         )
-        print("➡️ STEP 3: Invoking graph")
+
         result = graph.invoke(initial_state)
-        print("➡️ STEP 4: Appending assistant message")
+
         result["messages"].append(
             Message(
                 role="assistant",
                 content=result.get("generated_response")
             )
         )
-
-        print("➡️ Final result keys:", result.keys())
-        print("➡️ Preferences payload:", result['preferences'])
 
         if not result.get('preferences'):
             raise HTTPException(status_code=500, detail="Parser failed to extract preferences.")
