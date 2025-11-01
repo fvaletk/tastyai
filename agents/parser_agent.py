@@ -5,6 +5,7 @@ from openai import OpenAI
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 from mcp.schema import Message
+from models.schema import UserPreferences
 
 load_dotenv()
 
@@ -58,31 +59,38 @@ SYSTEM_PROMPT = """
 @tool
 def parse_user_input(messages: List[Message]) -> dict:
     """
-    Extract user preferences from natural language text using OpenAI.
-    Receives a list of Message objects and returns a dictionary with fields: language, cuisine, and diet.
+    Extract user preferences using OpenAI Function Calling for structured output.
     """
-    system_msg = {"role": "system", "content": SYSTEM_PROMPT}
-    
-    # Convert Message objects to dictionaries for OpenAI API
-    messages_as_dicts = [msg.dict() for msg in messages]
+    # Define the tool/function schema for preferences
+    function_spec = {
+        "name": "extract_preferences",
+        "description": "Extract structured meal preferences from user input",
+        "parameters": UserPreferences.model_json_schema()
+    }
+
+    # Convert Message objects to dicts
+    messages_payload = [msg.dict() for msg in messages]
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # or gpt-3.5-turbo
-            messages=[system_msg] + messages_as_dicts,
-            temperature=0,
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You extract structured meal preferences from user messages. Always return your reply as a function call."}
+            ] + messages_payload,
+            tools=[{"type": "function", "function": function_spec}],
+            tool_choice="auto",  # Let the model choose to call the function
         )
 
-        raw_content = response.choices[0].message.content.strip()
+        tool_call = response.choices[0].message.tool_calls[0]
+        args = tool_call.function.arguments
 
-        # Optional: Debug print
-        print("🔍 LLM raw output:", raw_content)
-
-        # Try to parse as JSON
-        return json.loads(raw_content)
+        # Parse tool_call arguments to a dict
+        import json
+        parsed = json.loads(args)
+        return parsed
 
     except Exception as e:
-        print("⚠️ ParserAgent error:", e)
+        print("⚠️ ParserAgent function call failed:", e)
         return {
             "language": "unknown",
             "cuisine": "unknown",
