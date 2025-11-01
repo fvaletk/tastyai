@@ -1,56 +1,75 @@
 import os
 import json
+from typing import List
 from openai import OpenAI
 from langchain_core.tools import tool
 from dotenv import load_dotenv
+from mcp.schema import Message
 
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """
-You are a helpful assistant that extracts user meal preferences from natural language input.
-Always return a JSON object with the following fields:
-- language: the detected language code (e.g., 'en', 'es')
-- cuisine: type of cuisine requested, e.g., 'italian', 'mexican', etc.
-- diet: dietary constraint (e.g., 'low-carb', 'vegetarian', 'gluten-free', or 'none')
+    You are a helpful assistant that extracts structured meal preferences from natural language user input.
 
-If any field is not mentioned, mark it as 'unknown'.
+    Always return a valid JSON object with the following fields:
+    - language: detected language code (e.g., "en", "es")
+    - cuisine: type of cuisine (e.g., "italian", "mexican"). Use "unknown" if not mentioned.
+    - diet: dietary restriction (e.g., "vegetarian", "gluten-free", "low-carb"). Use "unknown" if not mentioned.
+    - dish: specific dish the user wants (e.g., "pizza", "lasagna"). Use "unknown" if not mentioned.
+    - ingredients: list of desired ingredients (e.g., ["chicken", "avocado"]). Use an empty list if none are mentioned.
+    - allergies: list of ingredients to avoid (e.g., ["gluten", "lactose"]). Use an empty list if none are mentioned.
+    - meal_type: type of meal (e.g., "breakfast", "lunch", "dinner", "snack"). Use "unknown" if not mentioned.
+    - cooking_time: estimated time required (e.g., "short", "medium", "long", or "unknown").
 
-Format your response as valid JSON only, with no explanation or extra text.
+    Respond ONLY with a JSON object. Do not include any text before or after the JSON.
+    Use "unknown" for any missing string fields and empty lists `[]` for missing array fields.
 
-Examples:
+    Examples:
 
-Input: "Hola, quiero una cena italiana baja en carbohidratos"
-Output:
-{
-  "language": "es",
-  "cuisine": "italian",
-  "diet": "low-carb"
-}
+    Input: "I'm looking for a quick vegetarian Mexican dinner."
+    Output:
+    {
+      "language": "en",
+      "cuisine": "mexican",
+      "diet": "vegetarian",
+      "dish": "unknown",
+      "ingredients": [],
+      "allergies": [],
+      "meal_type": "dinner",
+      "cooking_time": "short"
+    }
 
-Input: "I'm looking for something vegetarian and Mexican."
-Output:
-{
-  "language": "en",
-  "cuisine": "mexican",
-  "diet": "vegetarian"
-}
-"""
+    Input: "Hola, tengo intolerancia a la lactosa y quiero una pizza italiana"
+    Output:
+    {
+      "language": "es",
+      "cuisine": "italian",
+      "diet": "unknown",
+      "dish": "pizza",
+      "ingredients": [],
+      "allergies": ["lactose"],
+      "meal_type": "unknown",
+      "cooking_time": "unknown"
+    }
+    """
 
 @tool
-def parse_user_input(input_text: str) -> dict:
+def parse_user_input(messages: List[Message]) -> dict:
     """
     Extract user preferences from natural language text using OpenAI.
-    Returns a dictionary with fields: language, cuisine, and diet.
+    Receives a list of Message objects and returns a dictionary with fields: language, cuisine, and diet.
     """
-    user_msg = {"role": "user", "content": input_text}
     system_msg = {"role": "system", "content": SYSTEM_PROMPT}
+    
+    # Convert Message objects to dictionaries for OpenAI API
+    messages_as_dicts = [msg.dict() for msg in messages]
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",  # or gpt-3.5-turbo
-            messages=[system_msg, user_msg],
+            messages=[system_msg] + messages_as_dicts,
             temperature=0,
         )
 
@@ -67,5 +86,10 @@ def parse_user_input(input_text: str) -> dict:
         return {
             "language": "unknown",
             "cuisine": "unknown",
-            "diet": "unknown"
+            "diet": "unknown",
+            "dish": "unknown",
+            "ingredients": [],
+            "allergies": [],
+            "meal_type": "unknown",
+            "cooking_time": "unknown"
         }
