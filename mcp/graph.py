@@ -4,10 +4,16 @@ from agents.parser_agent import parse_user_input
 from agents.search_agent import search_recipes
 from agents.response_agent import generate_response
 from models.schema import UserPreferences
+from db.services import save_message_to_db
 import json
+import uuid
 
 def parser_node(state: TastyAIState) -> dict:
     new_user_message = Message(role="user", content=state.user_input)
+
+    conversation_id = state.conversation_id or str(uuid.uuid4())
+    save_message_to_db(conversation_id, "user", state.user_input)
+
     updated_messages = state.messages + [new_user_message]
 
     preferences = parse_user_input.invoke({"messages": updated_messages})
@@ -21,12 +27,13 @@ def parser_node(state: TastyAIState) -> dict:
     # Convert to UserPreferences object for state validation
     preferences_obj = UserPreferences(**preferences) if isinstance(preferences, dict) else preferences
 
-    print("PARSING RESULT: preferences_obj", preferences_obj)
+    # print("PARSING RESULT: preferences_obj", preferences_obj)
 
     return {
         **state.dict(),
         "messages": updated_messages,
-        "preferences": preferences_obj
+        "preferences": preferences_obj,
+        "conversation_id": conversation_id
     }
 
 def search_node(state: TastyAIState) -> dict:
@@ -34,9 +41,9 @@ def search_node(state: TastyAIState) -> dict:
     prefs_dict = state.preferences.dict() if hasattr(state.preferences, 'dict') else (
         state.preferences.model_dump() if hasattr(state.preferences, 'model_dump') else state.preferences
     )
-    print("SEARCHING RESULT: prefs_dict", prefs_dict)
+    # print("SEARCHING RESULT: prefs_dict", prefs_dict)
     results = search_recipes.invoke({"preferences": prefs_dict})
-    print("SEARCHING RESULT: results", results)
+    # print("SEARCHING RESULT: results", results)
     return {
       **state.dict(),
       "results": results["matches"]
@@ -56,13 +63,17 @@ def response_node(state: TastyAIState) -> dict:
         )
         for r in results_list
     ]
-    print("RESPONSE RESULT: results_dicts", results_dicts)
+    # print("RESPONSE RESULT: results_dicts", results_dicts)
     result = generate_response.invoke({
         "preferences": prefs_dict,
         "results": results_dicts
     })
 
-    print("RESPONSE RESULT: result", result)
+    assistant_msg = result.get("generated_response")
+    if assistant_msg:
+        save_message_to_db(state.conversation_id, "assistant", assistant_msg)
+
+    # print("RESPONSE RESULT: result", result)
 
     return {
         **state.dict(),

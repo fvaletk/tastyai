@@ -9,6 +9,7 @@ class Message(BaseModel):
 
 class MessageRequest(BaseModel):
     message: str
+    conversation_id: Optional[str] = None
 
 class RecipeMatch(BaseModel):
     title: str
@@ -42,3 +43,4 @@ class PreferencesResponse(BaseModel):
     results: List[RecipeMatch]
     generated_response: Optional[str] = None
     messages: List[Message]
+    conversation_id: Optional[str] = None

@@ -6,13 +6,15 @@ from typing import List, Dict, Optional
 from mcp.graph import build_graph
 from mcp.schema import TastyAIState
 from models.schema import Message, MessageRequest, PreferencesResponse
-from db.migrate import run_migrations  # ← Add this
+# from db.migrate import run_migrations  # ← Add this
+from uuid import uuid4
+from db.services import load_conversation_history
 
 
 app = FastAPI(title="TastyAI API", version="0.1")
 
 # Apply Alembic migrations before starting app
-run_migrations()
+# run_migrations()
 
 # Build LangGraph MCP server
 graph = build_graph()
@@ -20,14 +22,17 @@ graph = build_graph()
 @app.post("/recommend", response_model=PreferencesResponse)
 async def recommend_meal(request: MessageRequest):
     user_input = request.message
+    conversation_id = request.conversation_id or str(uuid4())
 
     try:
-        messages = [
-            Message(role="user", content=user_input)
-        ]
+        db_messages = load_conversation_history(conversation_id)
+        db_messages.append({"role": "user", "content": user_input})
+
+        messages = [Message(**msg) for msg in db_messages]
 
         initial_state = TastyAIState(
             user_input=user_input,
+            conversation_id=conversation_id,
             messages=messages
         )
 
@@ -58,7 +63,8 @@ async def recommend_meal(request: MessageRequest):
             **preferences_dict,
             results=result['results'],
             generated_response=result.get('generated_response'),
-            messages=result['messages']
+            messages=result['messages'],
+            conversation_id=conversation_id
         )
 
     except Exception as e:

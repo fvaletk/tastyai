@@ -50,7 +50,7 @@ def search_recipes(preferences: Dict) -> Dict:
         query_terms = ["healthy dinner"]
 
     query_text = " ".join(query_terms)
-    print(f"🔍 Embedding query: {query_text}")
+    # print(f"🔍 Embedding query: {query_text}")
 
     try:
         # Generate embedding
@@ -67,7 +67,7 @@ def search_recipes(preferences: Dict) -> Dict:
             include_metadata=True
         )
 
-        print("🔎 Pinecone matches:", pinecone_response)
+        # print("🔎 Pinecone matches:", pinecone_response)
 
         # Extract and clean up metadata
         matches = []
