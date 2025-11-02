@@ -6,9 +6,13 @@ from typing import List, Dict, Optional
 from mcp.graph import build_graph
 from mcp.schema import TastyAIState
 from models.schema import Message, MessageRequest, PreferencesResponse
+from db.migrate import run_migrations  # ← Add this
 
 
 app = FastAPI(title="TastyAI API", version="0.1")
+
+# Apply Alembic migrations before starting app
+run_migrations()
 
 # Build LangGraph MCP server
 graph = build_graph()
