@@ -59,37 +59,6 @@ def user_requested_full_recipe(messages: List[Dict]) -> bool:
     ]
     return any(trigger in last_user_msg for trigger in triggers)
 
-# 🍽️ --- Helper: format a single recipe cleanly ---
-def format_recipe(recipe: dict) -> str:
-    """
-    Formats a single recipe into a readable, friendly markdown block.
-    Includes emojis for readability, and ends with source attribution.
-    """
-    title = recipe.get("title", "Untitled Recipe")
-    ingredients = recipe.get("ingredients", [])
-    directions = recipe.get("directions", [])
-    source = recipe.get("source", "Unknown Source")
-    link = recipe.get("link", "").strip()
-
-    # Format ingredients with emoji bullets
-    formatted_ingredients = "\n".join([f"- 🧂 {item}" for item in ingredients]) if ingredients else "No ingredients provided."
-
-    # Format directions with step numbers and icons
-    formatted_directions = "\n".join(
-        [f"{idx + 1}. 🔪 {step}" for idx, step in enumerate(directions)]
-    ) if directions else "No instructions provided."
-
-    # Format source attribution
-    source_attribution = f"\n\n📖 *Source: [{source}]({link})*" if link else f"\n\n📖 *Source: {source}*"
-
-    return (
-        f"### 🍽️ {title}\n\n"
-        f"**Ingredients:**\n{formatted_ingredients}\n\n"
-        f"**Directions:**\n{formatted_directions}"
-        f"{source_attribution}"
-    )
-
-
 # 🧩 --- Main Response Agent ---
 @tool
 def generate_response(preferences: Dict, results: List[Dict], messages: List[Dict] = []) -> Dict:

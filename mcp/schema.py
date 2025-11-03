@@ -11,3 +11,5 @@ class TastyAIState(BaseModel):
     results: Optional[List[RecipeMatch]] = None
     generated_response: Optional[str] = None
     messages: List[Message] = Field(default_factory=list)
+    full_history: Optional[str] = None
+    decide_recipe_request: Optional[dict] = None

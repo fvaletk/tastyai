@@ -21,6 +21,9 @@ graph = build_graph()
 
 @app.post("/recommend", response_model=PreferencesResponse)
 async def recommend_meal(request: MessageRequest):
+    print("#####################################################################")
+    print("RECOMMEND MEAL: request", request)
+    print("#####################################################################")
     user_input = request.message
     conversation_id = request.conversation_id or str(uuid4())
 
