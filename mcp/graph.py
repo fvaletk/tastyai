@@ -63,10 +63,21 @@ def response_node(state: TastyAIState) -> dict:
         )
         for r in results_list
     ]
+    
+    # Convert Message objects to dicts for generate_response
+    messages_list = state.messages or []
+    messages_dicts = [
+        m.dict() if hasattr(m, 'dict') else (
+            m.model_dump() if hasattr(m, 'model_dump') else m
+        )
+        for m in messages_list
+    ]
+    
     # print("RESPONSE RESULT: results_dicts", results_dicts)
     result = generate_response.invoke({
         "preferences": prefs_dict,
-        "results": results_dicts
+        "results": results_dicts,
+        "messages": messages_dicts
     })
 
     assistant_msg = result.get("generated_response")
