@@ -33,3 +33,23 @@ def load_conversation_history(conversation_id: str):
         ]
     finally:
         session.close()
+
+def load_all_conversation_history():
+    """Load all messages from all conversations, ordered by timestamp."""
+    session: Session = SessionLocal()
+    try:
+        messages = session.query(ChatMessage).order_by(ChatMessage.timestamp.asc()).all()
+        return [
+            {"role": msg.role, "content": msg.content}
+            for msg in messages
+        ]
+    finally:
+        session.close()
+    
+def delete_conversation_history(conversation_id: str):
+    session: Session = SessionLocal()
+    try:
+        session.query(ChatMessage).filter(ChatMessage.conversation_id == conversation_id).delete()
+        session.commit()
+    finally:
+        session.close()

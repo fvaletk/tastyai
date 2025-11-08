@@ -143,7 +143,6 @@ def format_recipe(recipe: dict) -> str:
         f"{source_attribution}"
     )
 
-
 # 🧩 --- Main Response Agent ---
 @tool
 def generate_response(preferences: Dict, results: List[Dict], messages: List[Dict] = []) -> Dict:

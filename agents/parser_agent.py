@@ -78,19 +78,47 @@ def parse_user_input(messages: List[Message]) -> dict:
                 {"role": "system", "content": "You extract structured meal preferences from user messages. Always return your reply as a function call."}
             ] + messages_payload,
             tools=[{"type": "function", "function": function_spec}],
-            tool_choice="auto",  # Let the model choose to call the function
+            tool_choice={"type": "function", "function": {"name": "extract_preferences"}},  # Force function call
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        # Check if response has choices
+        if not response.choices:
+            raise ValueError("No choices in API response")
+        
+        message = response.choices[0].message
+        
+        # Check if tool_calls exists and is not None/empty
+        if not message.tool_calls:
+            print("⚠️ ParserAgent: No tool_calls in response. Message content:", message.content)
+            raise ValueError("No tool_calls in response")
+        
+        if len(message.tool_calls) == 0:
+            print("⚠️ ParserAgent: Empty tool_calls list. Message content:", message.content)
+            raise ValueError("Empty tool_calls list")
+        
+        tool_call = message.tool_calls[0]
+        
+        # Check if tool_call has function and arguments
+        if not tool_call.function:
+            raise ValueError("Tool call missing function attribute")
+        
         args = tool_call.function.arguments
+        
+        if not args:
+            raise ValueError("Tool call function missing arguments")
 
         # Parse tool_call arguments to a dict
-        import json
         parsed = json.loads(args)
+        print("######################################################")
+        print("PARSER RESULT: parsed", parsed)
+        print("######################################################")
         return parsed
 
     except Exception as e:
         print("⚠️ ParserAgent function call failed:", e)
+        print(f"⚠️ Error type: {type(e).__name__}")
+        import traceback
+        print(f"⚠️ Traceback: {traceback.format_exc()}")
         return {
             "language": "unknown",
             "cuisine": "unknown",

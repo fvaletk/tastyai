@@ -16,6 +16,21 @@ services:
       - .:/app
     restart: unless-stopped
 
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: tastyai-ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - app
+    environment:
+      BACKEND_URL: http://app:8000
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
   db:
     image: postgres:15
     container_name: tastyai-db

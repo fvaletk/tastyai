@@ -6,18 +6,37 @@ from typing import List, Dict, Optional
 from mcp.graph import build_graph
 from mcp.schema import TastyAIState
 from models.schema import Message, MessageRequest, PreferencesResponse
-# from db.migrate import run_migrations  # ← Add this
 from uuid import uuid4
-from db.services import load_conversation_history
-
+from db.services import load_conversation_history, load_all_conversation_history
 
 app = FastAPI(title="TastyAI API", version="0.1")
 
-# Apply Alembic migrations before starting app
-# run_migrations()
-
 # Build LangGraph MCP server
 graph = build_graph()
+
+@app.get("/chat/history/{conversation_id}")
+async def get_chat_history(conversation_id: str):
+    """Get chat history for a conversation."""
+    try:
+        messages = load_conversation_history(conversation_id)
+        return {
+            "conversation_id": conversation_id,
+            "messages": [Message(**msg) for msg in messages]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading chat history: {str(e)}")
+
+@app.get("/chat/history")
+async def get_all_chat_history():
+    """Get all chat history from all conversations."""
+    try:
+        messages = load_all_conversation_history()
+        return {
+            "conversation_id": None,
+            "messages": [Message(**msg) for msg in messages]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading all chat history: {str(e)}")
 
 @app.post("/recommend", response_model=PreferencesResponse)
 async def recommend_meal(request: MessageRequest):
