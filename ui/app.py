@@ -28,6 +28,7 @@ st.markdown("""
             background-color: #FAF3E0;
             border-bottom: 1px solid #DDD;
             margin-bottom: 20px;
+            color: black;
         }
         .message-wrapper {
             display: flex;
@@ -45,6 +46,7 @@ st.markdown("""
             border-radius: 18px;
             max-width: 80%;
             word-wrap: break-word;
+            color: black;
         }
         .user .chat-bubble {
             background-color: #DCF8C6;

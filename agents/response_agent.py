@@ -5,143 +5,10 @@ from openai import OpenAI
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 from typing import Dict, List, Optional
+from .helpers import summarize_conversation, is_follow_up_comparison, user_requested_full_recipe, handle_comparative_response, format_recipe, user_selected_recipe
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# 🧠 --- Helper: summarize conversation context ---
-def summarize_conversation(messages: List[Dict]) -> str:
-    """Create a short narrative summary of the user's evolving preferences."""
-    if not messages:
-        return "The conversation just started. The user is making an initial request for a meal."
-
-    user_turns = [m["content"] for m in messages if m["role"] == "user"]
-    joined = "\n".join(user_turns[-6:])  # keep recent turns
-
-    try:
-        summary_prompt = f"""
-        Summarize the following conversation turns into one short paragraph
-        describing how the user's meal preferences have evolved.
-        Avoid greetings or repetitive phrasing.
-
-        Conversation:
-        {joined}
-        """
-
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a concise summarization assistant."},
-                {"role": "user", "content": summary_prompt.strip()},
-            ],
-            temperature=0.3,
-        )
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        print("⚠️ Conversation summarization failed:", e)
-        return "User has shared several changing preferences for dinner ideas."
-
-# 🕵️ --- Helper: detect if user explicitly asked for a recipe ---
-def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None) -> bool:
-    """Detects if the user asked for the full recipe."""
-    if not messages:
-        return False
-    
-    # Get the last user message (search backwards from the end)
-    last_user_msg = None
-    for msg in reversed(messages):
-        if msg.get("role") == "user":
-            last_user_msg = msg.get("content", "").lower()
-            break
-    
-    if not last_user_msg:
-        return False
-    
-    # Expanded triggers to catch more variations
-    triggers = [
-        "give me the recipe",
-        "show me the recipe",
-        "how do i make",
-        "how to make",
-        "full recipe",
-        "recipe for",
-        "would like the recipe",
-        "want the recipe",
-        "need the recipe",
-        "can i have the recipe",
-        "could you give me the recipe",
-        "instructions",
-        "preparation",
-        "how to prepare",
-        "how do you make",
-        "recipe please",
-        "the recipe",
-    ]
-    
-    # Check if any trigger phrase appears in the message
-    if any(trigger in last_user_msg for trigger in triggers):
-        return True
-    
-    # Also check if user is asking for a specific recipe by name
-    # This handles cases like "Yes, I would like the recipe for Italian Pizzeria-Style Meat Pie"
-    if results:
-        for recipe in results:
-            recipe_title = recipe.get("title", "").lower().strip()
-            if not recipe_title:
-                continue
-            
-            # Normalize both strings for comparison (remove extra spaces, special chars)
-            normalized_recipe = " ".join(recipe_title.split())
-            normalized_msg = " ".join(last_user_msg.split())
-            
-            # Check if the recipe title appears in the user's message (with some flexibility)
-            # Try exact match first, then try matching key words
-            if normalized_recipe in normalized_msg:
-                # Make sure it's in a request context (contains words like "recipe", "for", "yes", etc.)
-                request_words = ["recipe", "for", "yes", "please", "give", "show", "want", "like"]
-                if any(word in normalized_msg for word in request_words):
-                    return True
-            
-            # Also try matching key words from the recipe title (for partial matches)
-            recipe_words = [w for w in normalized_recipe.split() if len(w) > 3]  # Skip short words
-            if len(recipe_words) >= 2:  # Need at least 2 significant words
-                matched_words = sum(1 for word in recipe_words if word in normalized_msg)
-                if matched_words >= 2:  # If at least 2 key words match
-                    request_words = ["recipe", "for", "yes", "please", "give", "show", "want", "like"]
-                    if any(word in normalized_msg for word in request_words):
-                        return True
-    
-    return False
-
-# 🍽️ --- Helper: format a single recipe cleanly ---
-def format_recipe(recipe: dict) -> str:
-    """
-    Formats a single recipe into a readable, friendly markdown block.
-    Includes emojis for readability, and ends with source attribution.
-    """
-    title = recipe.get("title", "Untitled Recipe")
-    ingredients = recipe.get("ingredients", [])
-    directions = recipe.get("directions", [])
-    source = recipe.get("source", "Unknown Source")
-    link = recipe.get("link", "").strip()
-
-    # Format ingredients with emoji bullets
-    formatted_ingredients = "\n".join([f"- 🧂 {item}" for item in ingredients]) if ingredients else "No ingredients provided."
-
-    # Format directions with step numbers and icons
-    formatted_directions = "\n".join(
-        [f"{idx + 1}. 🔪 {step}" for idx, step in enumerate(directions)]
-    ) if directions else "No instructions provided."
-
-    # Format source attribution
-    source_attribution = f"\n\n📖 *Source: [{source}]({link})*" if link else f"\n\n📖 *Source: {source}*"
-
-    return (
-        f"### 🍽️ {title}\n\n"
-        f"**Ingredients:**\n{formatted_ingredients}\n\n"
-        f"**Directions:**\n{formatted_directions}"
-        f"{source_attribution}"
-    )
 
 # 🧩 --- Main Response Agent ---
 @tool
@@ -153,7 +20,24 @@ def generate_response(preferences: Dict, results: List[Dict], messages: List[Dic
 
     language = preferences.get("language", "English")
     conversation_summary = summarize_conversation(messages)
-    wants_recipe = user_requested_full_recipe(messages, results)
+    
+    # ⚠️ CRITICAL FIX: Check comparison FIRST before recipe request
+    # This ensures follow-up questions are handled correctly
+    is_comparison = is_follow_up_comparison(messages, results, language)
+    wants_recipe = user_requested_full_recipe(messages, results, language, is_comparison)
+    
+    print("******************************************************")
+    print("CONVERSATION SUMMARY: ", conversation_summary)
+    print("******************************************************")
+    print("WANTS RECIPE: ", wants_recipe)
+    print("******************************************************")
+    print("IS COMPARISON: ", is_comparison)
+    print("******************************************************")
+
+    # 🔍 Handle comparison or refinement follow-up FIRST
+    if is_comparison:
+        last_user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+        return handle_comparative_response(results, last_user_msg, language, messages)
 
     # 🌍 Multilingual + conversational configuration
     system_prompt = f"""
@@ -274,6 +158,7 @@ def generate_response(preferences: Dict, results: List[Dict], messages: List[Dic
                 for r in results[:5]
             ])
             return {"generated_response": f"Here are some great options for you:\n\n{options_text}\n\nWhich one would you like the full recipe for?"}
+
     
     # Fallback: if no recipes found, return error message
     return {"generated_response": "Sorry, I couldn't find any recipes matching your preferences right now."}

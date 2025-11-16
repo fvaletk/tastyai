@@ -9,5 +9,6 @@ class TastyAIState(BaseModel):
     conversation_id: Optional[str] = None
     preferences: Optional[UserPreferences] = None
     results: Optional[List[RecipeMatch]] = None
+    previous_results: Optional[List[RecipeMatch]] = None
     generated_response: Optional[str] = None
     messages: List[Message] = Field(default_factory=list)
