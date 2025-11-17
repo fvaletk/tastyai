@@ -47,6 +47,7 @@ async def recommend_meal(request: MessageRequest):
     print("######################################################")
     print("NEW INCOMING REQUEST")
     print("######################################################")
+
     user_input = request.message
     conversation_id = request.conversation_id or str(uuid4())
 
@@ -56,7 +57,6 @@ async def recommend_meal(request: MessageRequest):
 
         messages = [Message(**msg) for msg in db_messages]
 
-        # 🔥 KEY FIX: Load previous results from storage
         previous_results = conversation_results.get(conversation_id, None)
 
         print("######################################################")
@@ -84,7 +84,6 @@ async def recommend_meal(request: MessageRequest):
         if not result.get('results'):
             raise HTTPException(status_code=500, detail="Search agent failed to find recipes.")
 
-        # 🔥 KEY FIX: Store results for next turn
         conversation_results[conversation_id] = result['results']
         print(f"💾 Stored {len(result['results'])} recipes for conversation {conversation_id}")
 

@@ -65,20 +65,6 @@ def search_node(state: TastyAIState) -> dict:
     print("SEARCHING NOW...")
     print("######################################################")
     
-    # Check if this is a follow-up question
-    # is_followup = is_follow_up_question(state.messages)
-    
-    # # If it's a follow-up and we have existing results, reuse them
-    # if is_followup and state.results:
-    #     print("********************************************************")
-    #     print("🔄 FOLLOW-UP QUESTION DETECTED - REUSING EXISTING SEARCH RESULTS")
-    #     print(f"📋 PRESERVING {len(state.results)} RECIPES FROM PREVIOUS SEARCH")
-    #     return {**state.dict()}
-    
-    # if not state.results:
-    #     print("********************************************************")
-    #     print("🔍 NEW SEARCH REQUEST DETECTED - QUERYING DATABASE")
-    
     # Convert preferences to dict for search_recipes
     prefs_dict = state.preferences.dict() if hasattr(state.preferences, 'dict') else (
         state.preferences.model_dump() if hasattr(state.preferences, 'model_dump') else state.preferences
