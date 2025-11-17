@@ -110,7 +110,7 @@ def parse_user_input(messages: List[Message]) -> dict:
         # Parse tool_call arguments to a dict
         parsed = json.loads(args)
         print("######################################################")
-        print("PARSER RESULT: parsed", parsed)
+        print("PARSING", parsed)
         print("######################################################")
         return parsed
 

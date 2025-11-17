@@ -5,14 +5,18 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from mcp.graph import build_graph
 from mcp.schema import TastyAIState
-from models.schema import Message, MessageRequest, PreferencesResponse
+from models.schema import Message, MessageRequest, PreferencesResponse, RecipeMatch
 from uuid import uuid4
 from db.services import load_conversation_history, load_all_conversation_history
+import json
 
 app = FastAPI(title="TastyAI API", version="0.1")
 
 # Build LangGraph MCP server
 graph = build_graph()
+
+# In-memory storage for conversation results (use Redis in production)
+conversation_results = {}
 
 @app.get("/chat/history/{conversation_id}")
 async def get_chat_history(conversation_id: str):
@@ -40,6 +44,9 @@ async def get_all_chat_history():
 
 @app.post("/recommend", response_model=PreferencesResponse)
 async def recommend_meal(request: MessageRequest):
+    print("######################################################")
+    print("NEW INCOMING REQUEST")
+    print("######################################################")
     user_input = request.message
     conversation_id = request.conversation_id or str(uuid4())
 
@@ -49,10 +56,18 @@ async def recommend_meal(request: MessageRequest):
 
         messages = [Message(**msg) for msg in db_messages]
 
+        # 🔥 KEY FIX: Load previous results from storage
+        previous_results = conversation_results.get(conversation_id, None)
+
+        print("######################################################")
+        print(f"💾 LOADING PREVIOUS RESULTS FOR CONVERSATION {conversation_id}: {len(previous_results) if previous_results else 0} recipes")
+        print("######################################################")
+
         initial_state = TastyAIState(
             user_input=user_input,
             conversation_id=conversation_id,
-            messages=messages
+            messages=messages,
+            results=previous_results
         )
 
         result = graph.invoke(initial_state)
@@ -68,6 +83,10 @@ async def recommend_meal(request: MessageRequest):
             raise HTTPException(status_code=500, detail="Parser failed to extract preferences.")
         if not result.get('results'):
             raise HTTPException(status_code=500, detail="Search agent failed to find recipes.")
+
+        # 🔥 KEY FIX: Store results for next turn
+        conversation_results[conversation_id] = result['results']
+        print(f"💾 Stored {len(result['results'])} recipes for conversation {conversation_id}")
 
         # Build PreferencesResponse from state components
         # Handle both dict and UserPreferences object

@@ -71,13 +71,6 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
         language: User's language
         is_comparison: If True, this is already identified as a comparison question (skip recipe check)
     """
-    # print("******************************************************")
-    # print("MESSAGES: ", messages)
-    # print("******************************************************")
-    # print("RESULTS: ", results)
-    # print("******************************************************")
-    # print("LANGUAGE: ", language)
-    # print("******************************************************")
     
     if not messages:
         return False
@@ -88,6 +81,9 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
 
     last_user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     translated_msg = translate_to_english(last_user_msg.lower(), language)
+    
+    print(f"🔍 Checking recipe request for: '{last_user_msg}'")
+    print(f"📝 Translated: '{translated_msg}'")
     
     # 🚫 ANTI-PATTERNS: If message contains comparison/question words, likely NOT a recipe request
     comparison_anti_patterns = [
@@ -102,6 +98,7 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
             "recipe please", "full recipe"
         ])
         if not explicit_recipe_request:
+            print("❌ Anti-pattern detected - not a recipe request")
             return False
 
     # ✅ Explicit recipe request triggers
@@ -110,11 +107,19 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
         "full recipe", "recipe for", "would like the recipe", "want the recipe",
         "need the recipe", "can i have the recipe", "instructions for",
         "how to prepare", "recipe please", "i'll take", "i choose",
-        "let's go with", "i'd like to try"
+        "let's go with", "i'd like to try",
+        # 🔥 NEW: Added "want to prepare/make/cook" patterns
+        "want to prepare", "want to make", "want to cook",
+        "going to prepare", "going to make", "going to cook",
+        "i'll prepare", "i'll make", "i'll cook",
+        "let me prepare", "let me make", "let me cook",
+        "planning to prepare", "planning to make", "planning to cook"
     ]
 
-    if any(trigger in translated_msg for trigger in triggers):
-        return True
+    for trigger in triggers:
+        if trigger in translated_msg:
+            print(f"✅ Trigger matched: '{trigger}'")
+            return True
     
     # ✅ User selects by number or position
     selection_patterns = [
@@ -124,8 +129,10 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
         "option 1", "option 2", "option 3"
     ]
     
-    if any(pattern in translated_msg for pattern in selection_patterns):
-        return True
+    for pattern in selection_patterns:
+        if pattern in translated_msg:
+            print(f"✅ Selection pattern matched: '{pattern}'")
+            return True
 
     # ✅ Check if user mentioned a specific recipe title with selection intent
     if results:
@@ -136,15 +143,38 @@ def user_requested_full_recipe(messages: List[Dict], results: List[Dict] = None,
 
             normalized_title = " ".join(title.split())
             
-            # Only match if the FULL title is in the message AND there's selection intent
+            # 🔥 IMPROVED: Check if title is in message
             if normalized_title in translated_msg:
-                selection_intent = any(word in translated_msg for word in [
+                print(f"📋 Recipe title found in message: '{title}'")
+                
+                # Broader selection intent patterns
+                selection_intent_patterns = [
+                    # Direct selection
+                    "i want", "i'll have", "give me", "show me",
+                    # Preparation intent  
+                    "want to prepare", "want to make", "want to cook",
+                    "going to prepare", "going to make", "going to cook",
+                    "i'll prepare", "i'll make", "i'll cook",
+                    "planning to", "plan to",
+                    # Affirmation
                     "yes", "please", "this one", "that one", "sounds good",
-                    "i'll have", "i want", "give me", "show me"
-                ])
-                if selection_intent:
-                    return True
+                    # Decision making
+                    "i choose", "i pick", "i select", "i'd like"
+                ]
+                
+                for intent in selection_intent_patterns:
+                    if intent in translated_msg:
+                        print(f"✅ Selection intent matched: '{intent}'")
+                        return True
+                
+                # 🔥 NEW: If recipe title appears with action verbs, it's likely a request
+                action_verbs = ["prepare", "make", "cook", "try", "have", "get"]
+                for verb in action_verbs:
+                    if verb in translated_msg:
+                        print(f"✅ Action verb matched: '{verb}'")
+                        return True
 
+    print("❌ No recipe request detected")
     return False
 
 def is_follow_up_comparison(messages: List[Dict], results: List[Dict], language: str = "English") -> bool:
@@ -234,63 +264,6 @@ def format_recipe(recipe: dict) -> str:
         f"**Directions:**\n{formatted_directions}"
         f"{source_attribution}"
     )
-
-def handle_comparative_response(results: List[Dict], user_msg: str, language: str, messages: List[Dict] = None) -> Dict:
-    """
-    Responds to user follow-up questions comparing or refining recipe suggestions.
-    Enhanced to provide actual data from recipe directions for accurate time comparisons.
-    """
-    # Extract actual recipe data for comparison
-    recipe_details = []
-    for idx, recipe in enumerate(results[:3]):
-        title = recipe.get("title", f"Recipe {idx+1}")
-        ingredients_count = len(recipe.get("ingredients", []))
-        directions_count = len(recipe.get("directions", []))
-        directions = recipe.get("directions", [])
-        
-        recipe_details.append({
-            "title": title,
-            "ingredients_count": ingredients_count,
-            "steps_count": directions_count,
-            "directions": directions
-        })
-
-    prompt = f"""
-    The user previously received the following recipe suggestions:
-
-    {json.dumps(recipe_details, indent=2)}
-
-    Full conversation history:
-    {json.dumps(messages[-6:] if messages else [], indent=2)}
-
-    The user's latest question: "{user_msg}"
-
-    Respond in {language}, as a friendly home cook helping someone decide between options.
-    
-    IMPORTANT INSTRUCTIONS:
-    - Look at the actual recipe directions to estimate preparation time
-    - Count the number of steps and complexity of each step
-    - Recipes with fewer steps and simpler instructions generally take less time
-    - Be specific when comparing - use the actual step counts and ingredient counts
-    - Focus on what the user asked about (prep time, ingredients, healthiness, etc.)
-    - Keep it brief, warm, and helpful
-    - Do NOT list all recipes again unless directly relevant
-    - Answer their specific question directly first, then add context if helpful
-    """
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a warm and concise food assistant who provides accurate comparisons based on recipe data."},
-                {"role": "user", "content": prompt.strip()},
-            ],
-            temperature=0.7,
-        )
-        return {"generated_response": response.choices[0].message.content.strip()}
-    except Exception as e:
-        print("❌ Comparison response failed:", e)
-        return {"generated_response": "Sorry, I couldn't compare those recipes right now. Try rephrasing?"}
 
 def user_selected_recipe(messages: List[Dict], results: List[Dict], language: str = "English") -> Optional[Dict]:
     """

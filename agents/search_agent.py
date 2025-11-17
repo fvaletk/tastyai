@@ -95,9 +95,9 @@ def search_recipes(preferences: Dict) -> Dict:
                 "score": match.score
             })
 
-        print("------------------------------------------------------")
-        print("SEARCH RESULT: matches", matches)
-        print("------------------------------------------------------")
+        # print("------------------------------------------------------")
+        # print("SEARCH RESULT: matches", matches)
+        # print("------------------------------------------------------")
         return {"matches": matches}
 
     except Exception as e:
