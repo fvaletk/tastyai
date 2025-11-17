@@ -53,3 +53,11 @@ def delete_conversation_history(conversation_id: str):
         session.commit()
     finally:
         session.close()
+
+def delete_all_conversation_history():
+    session: Session = SessionLocal()
+    try:
+        session.query(ChatMessage).delete()
+        session.commit()
+    finally:
+        session.close()

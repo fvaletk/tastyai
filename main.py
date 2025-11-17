@@ -7,7 +7,7 @@ from mcp.graph import build_graph
 from mcp.schema import TastyAIState
 from models.schema import Message, MessageRequest, PreferencesResponse, RecipeMatch
 from uuid import uuid4
-from db.services import load_conversation_history, load_all_conversation_history
+from db.services import load_conversation_history, load_all_conversation_history, delete_all_conversation_history
 import json
 
 app = FastAPI(title="TastyAI API", version="0.1")
@@ -41,6 +41,15 @@ async def get_all_chat_history():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading all chat history: {str(e)}")
+
+@app.delete("/chat/history/all")
+async def delete_chat_history():
+    """Delete all chat history."""
+    try:
+        delete_all_conversation_history()
+        return {"message": "All chat history deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting chat history: {str(e)}")
 
 @app.post("/recommend", response_model=PreferencesResponse)
 async def recommend_meal(request: MessageRequest):

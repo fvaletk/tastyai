@@ -18,7 +18,6 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index(os.getenv("PINECONE_INDEX"))
 
-
 @tool
 def search_recipes(preferences: Dict) -> Dict:
     """
