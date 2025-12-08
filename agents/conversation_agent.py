@@ -74,7 +74,6 @@ def classify_intent(messages: List[Dict]) -> Dict:
     Respond with ONLY a JSON object:
     {{
       "intent": "new_search" | "comparison" | "recipe_request" | "general",
-      "confidence": 0.0 to 1.0,
       "reasoning": "brief explanation"
     }}
 
@@ -99,7 +98,6 @@ def classify_intent(messages: List[Dict]) -> Dict:
         parsed = json.loads(result)
         
         intent = parsed.get("intent", "new_search")
-        confidence = parsed.get("confidence", 0.5)
         reasoning = parsed.get("reasoning", "")
         
         # Post-processing: Override recipe_request if no recipes have been shown
@@ -109,17 +107,16 @@ def classify_intent(messages: List[Dict]) -> Dict:
             reasoning = f"Overridden: {reasoning} (no recipes shown yet)"
         
         print("######################################################")
-        print(f"🎯 INTENT CLASSIFICATION: {intent} (confidence: {confidence})")
+        print(f"🎯 INTENT CLASSIFICATION: {intent}")
         print(f"💭 REASONING: {reasoning}")
         print("######################################################")
         
         return {
             "intent": intent,
-            "confidence": confidence,
             "reasoning": reasoning
         }
         
     except Exception as e:
         print(f"⚠️ Intent classification failed: {e}")
         # Fallback: if conversation has recipes, assume follow-up, else new search
-        return {"intent": "new_search", "confidence": 0.3, "reasoning": "fallback"}
+        return {"intent": "new_search", "reasoning": "fallback"}
