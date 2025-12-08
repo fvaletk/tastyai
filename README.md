@@ -4,6 +4,72 @@
 
 TastyAI is an intelligent recipe recommendation system that uses a multi-agent architecture to understand user preferences, search through a recipe database, and provide personalized meal suggestions. The system is built with a focus on modularity, conversational flow, and multilingual support.
 
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose installed on your system
+- Git for cloning the repository
+
+### Setup Instructions
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd tastyai
+   ```
+
+2. **Set up environment variables**
+   
+   Create a `.env` file in the root directory with the following variables (you will receive these privately):
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `PINECONE_API_KEY`: Your Pinecone API key
+   - `PINECONE_INDEX`: Your Pinecone index name
+   - `DATABASE_URL`: PostgreSQL connection string (format: `postgresql://tastyuser:tastypass@db:5432/tastyai`)
+
+3. **Build and run with Docker Compose**
+   ```bash
+   docker-compose up --build
+   ```
+   
+   This will start three services:
+   - **FastAPI backend** on port 8000
+   - **Streamlit UI** on port 8501
+   - **PostgreSQL database** on port 5432
+
+4. **Run database migrations**
+   
+   After the containers are running, execute the Alembic migration inside the Docker container:
+   ```bash
+   docker exec -it tastyai-api alembic upgrade head
+   ```
+   
+   Alternatively, if you have Alembic installed locally and your `DATABASE_URL` points to the database, you can run:
+   ```bash
+   alembic upgrade head
+   ```
+
+5. **Access the application**
+   
+   Open your web browser and navigate to:
+   ```
+   http://localhost:8501
+   ```
+   
+   You can now start asking for recipes! The Streamlit UI will communicate with the FastAPI backend running on port 8000.
+
+### Stopping the Application
+
+To stop all services:
+```bash
+docker-compose down
+```
+
+To stop and remove volumes (this will delete the database data):
+```bash
+docker-compose down -v
+```
+
 ## Agentic Architecture
 
 ### Design Philosophy
