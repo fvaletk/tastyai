@@ -133,6 +133,7 @@ def handle_general_response(preferences: Dict, results: List[Dict], messages: Li
     If the question is about a specific recipe, identify which one and answer accordingly.
     If the question is general, provide information about the available recipes.
     Be specific and helpful, but acknowledge when you're making estimates.
+    If the user is ultimately been polite and saying stuff like "thank you" or "you're amazing", then just say "You're welcome! Ping me if you need another meal recommendation." and end the conversation.
     """
     
     try:
@@ -149,24 +150,60 @@ def handle_general_response(preferences: Dict, results: List[Dict], messages: Li
         print("❌ General response failed:", e)
         return {"generated_response": "Sorry, I couldn't answer that question right now. Try rephrasing?"}
 
-def handle_recipe_request(preferences: Dict, results: List[Dict], messages: List[Dict] = None, language: str = "English") -> Dict:
+def handle_recipe_request(preferences: Dict, results: List[Dict], messages: List[Dict] = None, language: str = "English", matched_recipe_title: Optional[str] = None) -> Dict:
     """
     Handles explicit recipe requests. Finds the specific recipe the user wants
     and returns it with full ingredients and directions formatted.
+    
+    Args:
+        matched_recipe_title: The exact recipe title identified by recipe_request_analysis_node.
+                            If provided, this takes priority over message-based matching.
     """
 
     print("######################################################")
     print("RECIPE REQUEST")
     print("######################################################")
+    if matched_recipe_title:
+        print(f"🎯 Using matched recipe title: {matched_recipe_title}")
 
     if not results:
         return {"generated_response": "Sorry, I couldn't find any recipes right now."}
     
     # Initialize with top recipe if available
-    top_recipe: Optional[Dict] = results[0] if results else None
+    top_recipe: Optional[Dict] = None
     
-    # Try to find the specific recipe the user mentioned
-    if messages:
+    # PRIORITY 1: Use matched_recipe_title if provided (from recipe_request_analysis_node)
+    if matched_recipe_title:
+        matched_title_lower = matched_recipe_title.lower().strip()
+        for recipe in results:
+            recipe_title = recipe.get("title", "").strip()
+            recipe_title_lower = recipe_title.lower().strip()
+            
+            # Try exact match (case-insensitive)
+            if recipe_title_lower == matched_title_lower:
+                top_recipe = recipe
+                print(f"✅ Exact match found: {recipe_title}")
+                break
+            
+            # Try partial match - check if matched title is contained in recipe title or vice versa
+            if matched_title_lower in recipe_title_lower or recipe_title_lower in matched_title_lower:
+                top_recipe = recipe
+                print(f"✅ Partial match found: {recipe_title}")
+                break
+            
+            # Try fuzzy match - check if key words match
+            matched_words = [w for w in matched_title_lower.split() if len(w) > 3]
+            recipe_words = [w for w in recipe_title_lower.split() if len(w) > 3]
+            if matched_words and recipe_words:
+                # Count how many significant words from matched title appear in recipe title
+                matched_count = sum(1 for word in matched_words if word in recipe_title_lower)
+                if matched_count >= min(2, len(matched_words)):
+                    top_recipe = recipe
+                    print(f"✅ Fuzzy match found: {recipe_title} (matched {matched_count} words)")
+                    break
+    
+    # PRIORITY 2: Try to find the specific recipe from user message (fallback)
+    if not top_recipe and messages:
         last_user_msg = None
         for msg in reversed(messages):
             if msg.get("role") == "user":
@@ -187,6 +224,7 @@ def handle_recipe_request(preferences: Dict, results: List[Dict], messages: List
                 # Try exact match first
                 if normalized_recipe in normalized_msg:
                     top_recipe = recipe
+                    print(f"✅ Message-based match found: {recipe_title}")
                     break
                 
                 # Try matching key words from the recipe title
@@ -195,11 +233,13 @@ def handle_recipe_request(preferences: Dict, results: List[Dict], messages: List
                     matched_words = sum(1 for word in recipe_words if word in normalized_msg)
                     if matched_words >= 2:
                         top_recipe = recipe
+                        print(f"✅ Message-based fuzzy match found: {recipe_title}")
                         break
     
-    # If no specific recipe found, use top recipe
+    # PRIORITY 3: Fallback to top recipe if no match found
     if not top_recipe and results:
         top_recipe = results[0]
+        print(f"⚠️ No specific match found, using top recipe: {top_recipe.get('title', 'Unknown')}")
     
     # Format and return full recipe with ingredients and directions
     if top_recipe:

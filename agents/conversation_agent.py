@@ -25,9 +25,17 @@ def classify_intent(messages: List[Dict]) -> Dict:
     if not last_user_msg:
         return {"intent": "new_search"}
     
+    # Check if recipes have been shown (indicated by assistant messages)
+    assistant_messages = [m for m in messages if m.get("role") == "assistant"]
+    recipes_have_been_shown = len(assistant_messages) > 0
+    
     # Get conversation context (last 4 messages)
     recent_messages = messages[-4:] if len(messages) > 4 else messages
     context = "\n".join([f"{m.get('role', 'unknown')}: {m.get('content', '')}" for m in recent_messages])
+    
+    # Count user messages to determine if this is likely the first request
+    user_messages = [m for m in messages if m.get("role") == "user"]
+    is_first_request = len(user_messages) == 1
     
     prompt = f"""
     Analyze the user's latest message and classify their intent.
@@ -37,19 +45,31 @@ def classify_intent(messages: List[Dict]) -> Dict:
 
     User's latest message: "{last_user_msg}"
 
+    IMPORTANT CONTEXT:
+    - Recipes have been shown in this conversation: {recipes_have_been_shown}
+    - This is the first user message: {is_first_request}
+    - Number of assistant responses: {len(assistant_messages)}
+
     Classify the intent into ONE of these categories:
 
     1. "new_search" - User wants to search for new recipes (new cuisine, new dish, different meal)
-       Examples: "I want Italian food", "Show me breakfast recipes", "I'm looking for desserts"
+       - Use this if NO recipes have been shown yet (first message or no assistant responses)
+       - Use this if user is asking for something completely new
+       - Examples: "I want Italian food", "Show me breakfast recipes", "I'm looking for desserts", "I want to prepare a pie" (if no recipes shown yet)
 
     2. "comparison" - User is comparing or asking about differences between previously shown recipes
-       Examples: "What's the difference?", "Which one is quicker?", "Which is healthier?"
+       - ONLY use if recipes have already been shown
+       - Examples: "What's the difference?", "Which one is quicker?", "Which is healthier?"
 
-    3. "recipe_request" - User wants the full recipe for a specific dish that was already mentioned
-       Examples: "Give me the recipe for X", "I want to prepare the Lasagna", "Show me the first one"
+    3. "recipe_request" - User wants the full recipe for a specific dish that was already mentioned/shown
+       - ONLY use if recipes have already been shown and user is selecting one
+       - Examples: "Give me the recipe for X" (where X was shown), "I want to prepare the Lasagna" (where Lasagna was shown), "Show me the first one"
 
     4. "general" - General questions or conversation
-       Examples: "Thanks", "Tell me more", "What do you recommend?"
+       - Examples: "Thanks", "Tell me more", "What do you recommend?"
+
+    CRITICAL RULE: If recipes have NOT been shown yet (no assistant messages), the intent MUST be "new_search" 
+    even if the user says "I want to prepare X" or "give me the recipe for X". They need to see recipe options first.
 
     Respond with ONLY a JSON object:
     {{
@@ -81,6 +101,12 @@ def classify_intent(messages: List[Dict]) -> Dict:
         intent = parsed.get("intent", "new_search")
         confidence = parsed.get("confidence", 0.5)
         reasoning = parsed.get("reasoning", "")
+        
+        # Post-processing: Override recipe_request if no recipes have been shown
+        if intent == "recipe_request" and not recipes_have_been_shown:
+            print("⚠️ Overriding recipe_request to new_search: No recipes have been shown yet")
+            intent = "new_search"
+            reasoning = f"Overridden: {reasoning} (no recipes shown yet)"
         
         print("######################################################")
         print(f"🎯 INTENT CLASSIFICATION: {intent} (confidence: {confidence})")

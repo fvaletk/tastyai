@@ -81,6 +81,12 @@ async def recommend_meal(request: MessageRequest):
 
         result = graph.invoke(initial_state)
 
+        for msg in result.get("messages", []):
+            print("######################################################")
+            if getattr(msg, "role", "") == "user" or (isinstance(msg, dict) and msg.get("role") == "user"):
+                print("User message:", getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", ""))
+                print("######################################################")
+
         result["messages"].append(
             Message(
                 role="assistant",
@@ -88,10 +94,34 @@ async def recommend_meal(request: MessageRequest):
             )
         )
 
+        # Preferences might be None for some paths (e.g., show_recipes), but should be set
+        # Only fail if we went through parse/search path and still don't have preferences
         if not result.get('preferences'):
-            raise HTTPException(status_code=500, detail="Parser failed to extract preferences.")
+            # Check if we have results - if yes, preferences might not be critical
+            if not result.get('results'):
+                raise HTTPException(status_code=500, detail="Parser failed to extract preferences.")
+            else:
+                # Create default preferences if missing but we have results
+                print("⚠️ Warning: No preferences found, creating default")
+                from models.schema import UserPreferences
+                result['preferences'] = UserPreferences(
+                    language="English",
+                    cuisine="unknown",
+                    diet="unknown",
+                    dish="unknown",
+                    ingredients=[],
+                    allergies=[],
+                    meal_type="unknown",
+                    cooking_time="unknown"
+                )
+        
+        # Results check - only fail for new_search intent, allow empty for follow-ups
         if not result.get('results'):
-            raise HTTPException(status_code=500, detail="Search agent failed to find recipes.")
+            intent = result.get('intent', 'new_search')
+            if intent == 'new_search':
+                raise HTTPException(status_code=500, detail="Search agent failed to find recipes.")
+            else:
+                print(f"⚠️ Warning: No results for intent '{intent}', but continuing")
 
         conversation_results[conversation_id] = result['results']
         print(f"💾 Stored {len(result['results'])} recipes for conversation {conversation_id}")

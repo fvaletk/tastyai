@@ -166,10 +166,6 @@ if st.session_state.pending_message and st.session_state.loading:
     st.session_state.pending_message = None  # Clear pending message
     
     try:
-        # print("--------------------------------")       
-        # print("USER INPUT: ", user_input)
-        # print("CONVERSATION ID: ", st.session_state.conversation_id)
-        # print("--------------------------------")
         response = requests.post(
             f"{BACKEND_URL}/recommend",
             json={
@@ -183,10 +179,6 @@ if st.session_state.pending_message and st.session_state.loading:
             data = response.json()
             # Update conversation_id
             st.session_state.conversation_id = data.get("conversation_id", "")
-            # print("#################################")
-            # print("DATA: ", data)
-            # print("CONVERSATION ID: ", st.session_state.conversation_id)
-            # print("#################################")
             
             # Convert messages from response to dict format
             response_messages = data.get("messages", [])

@@ -12,4 +12,8 @@ class TastyAIState(BaseModel):
     previous_results: Optional[List[RecipeMatch]] = None
     generated_response: Optional[str] = None
     intent: Optional[str] = None
+    intent_reasoning: Optional[str] = None  # Reasoning from intent classification
+    recipe_request_type: Optional[str] = None  # "specific_recipe" | "dish" | "new_dish"
+    matched_recipe_title: Optional[str] = None
+    dish_name: Optional[str] = None
     messages: List[Message] = Field(default_factory=list)
