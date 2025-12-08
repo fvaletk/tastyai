@@ -36,7 +36,7 @@ User Input
 
 **Purpose**: Determines what the user wants to do based on conversation context.
 
-**Technology**: OpenAI GPT-4o-mini (cost-effective for classification)
+**Technology**: OpenAI GPT-4o
 
 **Responsibilities**:
 - Analyzes the user's latest message in context of conversation history
