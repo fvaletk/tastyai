@@ -163,8 +163,6 @@ with st.form("chat_input", clear_on_submit=True):
     submitted = st.form_submit_button("Send")
 
 if submitted and user_input.strip():
-    st.info('Using user input: ' + user_input.strip(), icon="ℹ️")
-    st.info('Using conversation id: ' + st.session_state.conversation_id, icon="ℹ️")
     # Store the pending message and add to UI
     user_message = {"role": "user", "content": user_input.strip()}
     st.session_state.messages.append(user_message)
