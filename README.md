@@ -46,7 +46,7 @@ User Input
   - `recipe_request`: User wants the full recipe for a specific dish
   - `general`: General questions or conversation
 
-**Key Design Decision**: Uses a lightweight model (GPT-4o-mini) since classification is a simpler task than generation, reducing costs while maintaining accuracy.
+**Key Design Decision**: Uses GPT-4o for intent classification to ensure high accuracy in understanding user intent and conversation context, which is critical for proper routing through the agent workflow.
 
 #### 2. Preference Parser Agent (`parser_agent.py`)
 
