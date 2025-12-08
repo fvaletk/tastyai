@@ -59,5 +59,8 @@ def delete_all_conversation_history():
     try:
         session.query(ChatMessage).delete()
         session.commit()
+        print("######################################################")
+        print("ALL CONVERSATION HISTORY DELETED")
+        print("######################################################")
     finally:
         session.close()

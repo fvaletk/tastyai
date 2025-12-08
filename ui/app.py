@@ -119,7 +119,20 @@ if not st.session_state.history_loaded:
 col1, col2 = st.columns([0.3, 0.7])
 with col1:
     if st.button("🗑️ New Chat", width="content"):
-        # st.info('This is a purely informational message', icon="ℹ️")
+        try:
+            # Call the delete endpoint to reset everything on the backend
+            delete_response = requests.delete(
+                f"{BACKEND_URL}/chat/history/all",
+                timeout=10
+            )
+            if delete_response.status_code == 200:
+                st.success("Chat history cleared successfully!")
+            else:
+                st.warning(f"Could not clear chat history: {delete_response.json().get('detail', 'Unknown error')}")
+        except Exception as e:
+            st.warning(f"Error clearing chat history: {e}")
+        
+        # Clear local session state
         st.session_state.messages = []
         st.session_state.conversation_id = ""
         st.session_state.history_loaded = False
