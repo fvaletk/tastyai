@@ -70,6 +70,102 @@ To stop and remove volumes (this will delete the database data):
 docker-compose down -v
 ```
 
+## Demonstration
+
+Here are some example queries and their corresponding outputs to demonstrate how TastyAI works:
+
+### Example 1: New Recipe Search
+
+**User Query:**
+```
+I'm looking for a quick vegetarian Italian dinner recipe
+```
+
+**System Response:**
+```
+Here are some great options for you:
+
+1. **Classic Margherita Pizza** — made with tomatoes, mozzarella, basil...
+2. **Vegetarian Lasagna** — made with ricotta, spinach, marinara sauce...
+3. **Caprese Pasta** — made with fresh mozzarella, tomatoes, basil...
+
+Which one would you like the full recipe for?
+```
+
+**What Happened:**
+- Intent Classification Agent identified this as a `new_search`
+- Preference Parser Agent extracted: cuisine="italian", diet="vegetarian", meal_type="dinner", cooking_time="short"
+- Recipe Search Agent performed semantic search in Pinecone
+- Response Agent generated a friendly, conversational response with recipe options
+
+### Example 2: Recipe Request with Follow-up
+
+**User Query 1:**
+```
+Show me Italian pizza recipes
+```
+
+**System Response 1:**
+```
+Here are some delicious Italian pizza options:
+
+1. **Classic Margherita Pizza** — made with tomatoes, mozzarella, basil...
+2. **Pepperoni Pizza** — made with pepperoni, mozzarella, tomato sauce...
+3. **Quattro Stagioni Pizza** — made with mushrooms, ham, artichokes, olives...
+
+Which one would you like the full recipe for?
+```
+
+**User Query 2:**
+```
+Give me the recipe for the first one
+```
+
+**System Response 2:**
+```
+Here's the full recipe for **Classic Margherita Pizza**.
+
+**Ingredients:**
+- 1 pizza dough (store-bought or homemade)
+- 1/2 cup tomato sauce
+- 8 oz fresh mozzarella, sliced
+- Fresh basil leaves
+- 2 tbsp olive oil
+- Salt and pepper to taste
+
+**Directions:**
+1. Preheat your oven to 475°F (245°C)...
+2. Roll out the pizza dough on a floured surface...
+3. Spread tomato sauce evenly over the dough...
+[... full recipe continues]
+```
+
+**What Happened:**
+- First query: Full search flow (parse → search → response)
+- Second query: Intent Classification identified `recipe_request`
+- Recipe Request Analysis Agent matched "the first one" to "Classic Margherita Pizza"
+- Response Agent returned the complete recipe with ingredients and directions
+
+### Example 3: Comparison Query
+
+**User Query:**
+```
+Which recipe is quicker to prepare?
+```
+
+**System Response:**
+```
+Looking at the recipes we discussed, the **Caprese Pasta** is definitely the quickest option. It has only 4 steps compared to the lasagna's 8 steps, and most of the preparation involves simple assembly rather than cooking. You can have it ready in about 15-20 minutes, while the lasagna requires about 45 minutes of active cooking time plus baking.
+
+The Margherita Pizza falls somewhere in between - it's quicker than lasagna but requires dough preparation if you're making it from scratch, which adds about 30 minutes.
+```
+
+**What Happened:**
+- Intent Classification Agent identified this as a `comparison` intent
+- System reused previous search results (no new search needed)
+- Response Agent analyzed the recipe directions to compare preparation times
+- Generated a helpful comparison based on actual recipe data (step counts and complexity)
+
 ## Agentic Architecture
 
 ### Design Philosophy
