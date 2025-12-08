@@ -163,9 +163,12 @@ with st.form("chat_input", clear_on_submit=True):
     submitted = st.form_submit_button("Send")
 
 if submitted and user_input.strip():
-    # Store the pending message and add to UI
+    # Store the pending message and add to UI immediately for better UX
     user_message = {"role": "user", "content": user_input.strip()}
-    st.session_state.messages.append(user_message)
+    # Check if this exact message is already the last message (prevent duplicates on rerun)
+    last_msg = st.session_state.messages[-1] if st.session_state.messages else None
+    if not last_msg or last_msg.get("role") != "user" or last_msg.get("content") != user_input.strip():
+        st.session_state.messages.append(user_message)
     st.session_state.pending_message = user_input.strip()
     st.session_state.loading = True
     st.session_state.history_loaded = True  # Mark as loaded to prevent reload
@@ -192,14 +195,23 @@ if st.session_state.pending_message and st.session_state.loading:
             st.session_state.conversation_id = data.get("conversation_id", "")
             
             # Convert messages from response to dict format
+            # Backend response is the source of truth - it includes all messages
             response_messages = data.get("messages", [])
-            st.session_state.messages = [
+            new_messages = [
                 {
                     "role": msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", ""),
                     "content": msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
                 }
                 for msg in response_messages
             ]
+            
+            # Deduplicate consecutive messages with same role and content
+            deduplicated = []
+            for msg in new_messages:
+                if not deduplicated or deduplicated[-1]["role"] != msg["role"] or deduplicated[-1]["content"] != msg["content"]:
+                    deduplicated.append(msg)
+            
+            st.session_state.messages = deduplicated
         else:
             error_msg = response.json().get("detail", "Sorry, something went wrong on the server.")
             st.session_state.messages.append({
