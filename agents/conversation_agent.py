@@ -82,7 +82,7 @@ def classify_intent(messages: List[Dict]) -> Dict:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an intent classification expert. Respond only with valid JSON."},
                 {"role": "user", "content": prompt.strip()}
